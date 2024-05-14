@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IceSync.Web", "IceSync.Web\IceSync.Web.csproj", "{8A8676FE-D920-4F8D-892D-6D5DD0942745}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IceSync.Data", "IceSync.Data\IceSync.Data.csproj", "{0B69CC10-EAA6-45BF-80DC-10862D6F3A18}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{8A8676FE-D920-4F8D-892D-6D5DD0942745}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A8676FE-D920-4F8D-892D-6D5DD0942745}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A8676FE-D920-4F8D-892D-6D5DD0942745}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B69CC10-EAA6-45BF-80DC-10862D6F3A18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B69CC10-EAA6-45BF-80DC-10862D6F3A18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B69CC10-EAA6-45BF-80DC-10862D6F3A18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B69CC10-EAA6-45BF-80DC-10862D6F3A18}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
