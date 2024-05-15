@@ -1,6 +1,7 @@
 ﻿using IceSync.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using AutoMapper;
 using IceSync.ApiClient;
 
 namespace IceSync.Web.Controllers;
@@ -8,23 +9,18 @@ namespace IceSync.Web.Controllers;
 public class WorkflowController : Controller
 {
     private readonly IApiClient _apiClient;
+    private readonly IMapper _mapper;
 
-    public WorkflowController(IApiClient apiClient)
+    public WorkflowController(IApiClient apiClient, IMapper mapper)
     {
         _apiClient = apiClient;
+        _mapper = mapper;
     }
 
     public async Task<IActionResult> Index()
     {
         var apiWorkFlows = await _apiClient.GetWorkflowsAsync();
-        var workflows = apiWorkFlows.Select(w => new WorkflowViewModel
-        {
-            Id = w.Id,
-            Name = w.Name,
-            IsActive = w.IsActive,
-            IsRunning = w.IsRunning,
-            MultiExecBehavior = w.MultiExecBehavior
-        });
+        var workflows = _mapper.Map<IEnumerable<WorkflowViewModel>?>(apiWorkFlows);
 
         return View(workflows);
     }

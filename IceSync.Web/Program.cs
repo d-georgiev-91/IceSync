@@ -21,6 +21,8 @@ builder.Services.AddControllersWithViews()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddAutoMapper(typeof(Program));
+
 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
 builder.Services.AddSingleton<IEnvironment, IceSync.CommonAbstractions.Environment>();
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
