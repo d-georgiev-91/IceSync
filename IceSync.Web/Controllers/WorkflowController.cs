@@ -1,26 +1,30 @@
 ﻿using IceSync.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using IceSync.ApiClient;
 
 namespace IceSync.Web.Controllers;
 
 public class WorkflowController : Controller
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<WorkflowController> _logger;
+    private readonly IApiClient _apiClient;
 
-    public WorkflowController(IHttpClientFactory httpClientFactory, ILogger<WorkflowController> logger)
+    public WorkflowController(IApiClient apiClient)
     {
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
+        _apiClient = apiClient;
     }
 
     public async Task<IActionResult> Index()
     {
-        var client = _httpClientFactory.CreateClient("ApiHttpClient");
-        var response = await client.GetAsync("https://api-test.universal-loader.com/workflows");
-        response.EnsureSuccessStatusCode();
-        var workflows = await response.Content.ReadFromJsonAsync<IEnumerable<WorkflowViewModel>>();
+        var apiWorkFlows = await _apiClient.GetWorkflowsAsync();
+        var workflows = apiWorkFlows.Select(w => new WorkflowViewModel
+        {
+            Id = w.Id,
+            Name = w.Name,
+            IsActive = w.IsActive,
+            IsRunning = w.IsRunning,
+            MultiExecBehavior = w.MultiExecBehavior
+        });
 
         return View(workflows);
     }
@@ -28,21 +32,15 @@ public class WorkflowController : Controller
     [HttpPost]
     public async Task<IActionResult> Run(int id)
     {
-        try
-        {
-            var client = _httpClientFactory.CreateClient("ApiHttpClient");
-            var response = await client.PostAsync($"https://api-test.universal-loader.com/workflows/{id}/run", null);
-            response.EnsureSuccessStatusCode();
-            return Ok();
-            return Json(new { success = true, message = $"Workflow {id} is now running." });
-        }
-        catch (HttpRequestException ex)
-        {
-            return BadRequest();
-            return Json(new { success = false, message = $"Error running workflow {id}: {ex.Message}" });
-        }
-    }
+        var result = await _apiClient.RunWorkflowAsync(id);
 
+        if (result)
+        {
+            return Ok();
+        }
+
+        return BadRequest();
+    }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()

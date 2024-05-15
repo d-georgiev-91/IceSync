@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\IceSync.ApiClient\IceSync.ApiClient.csproj" />
     <ProjectReference Include="..\IceSync.Data\IceSync.Data.csproj" />
   </ItemGroup>
 

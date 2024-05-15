@@ -1,7 +1,6 @@
-﻿using System.Text.Json;
-using EFCore.BulkExtensions;
+﻿using EFCore.BulkExtensions;
+using IceSync.ApiClient;
 using IceSync.Data;
-using IceSync.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace IceSync.Web.Services;
@@ -9,13 +8,13 @@ namespace IceSync.Web.Services;
 public class WorkflowSyncService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IApiClient _apiClient;
     private readonly ILogger<WorkflowSyncService> _logger;
 
-    public WorkflowSyncService(IServiceProvider serviceProvider, IHttpClientFactory httpClientFactory, ILogger<WorkflowSyncService> logger)
+    public WorkflowSyncService(IServiceProvider serviceProvider, IApiClient apiClient, ILogger<WorkflowSyncService> logger)
     {
         _serviceProvider = serviceProvider;
-        _httpClientFactory = httpClientFactory;
+        _apiClient = apiClient;
         _logger = logger;
     }
 
@@ -25,19 +24,7 @@ public class WorkflowSyncService
 
         try
         {
-            var client = _httpClientFactory.CreateClient("ApiHttpClient");
-            var response = await client.GetAsync("https://api-test.universal-loader.com/workflows");
-            response.EnsureSuccessStatusCode();
-            var workflowsFromApi = await response.Content.ReadFromJsonAsync<IEnumerable<Workflow>>();
-            // For testing
-            //var workflowsFromApi = new List<Workflow> {
-            //    new() {
-            //        Id = 1111,
-            //        Name = "denis",
-            //        IsActive = true,
-            //        MultiExecBehavior = "Skip",
-            //    }
-            //};
+            var workflowsFromApi = await _apiClient.GetWorkflowsAsync();
 
             using var scope = _serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

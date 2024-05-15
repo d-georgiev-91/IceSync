@@ -4,8 +4,9 @@ using IceSync.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using System.Text.Json;
-using System.Net.Http.Headers;
-
+using IceSync.ApiClient;
+using IceSync.ApiClient.Configs;
+using IceSync.CommonAbstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,16 +21,16 @@ builder.Services.AddControllersWithViews()
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configure HttpClient and JWT authentication
-builder.Services.AddHttpClient("ApiHttpClient")
-    .ConfigureHttpClient((sp, client) =>
-    {
-        var tokenService = sp.GetRequiredService<IceSync.Web.Services.ITokenService>();
-        var token = Task.Run(() => tokenService.GetTokenAsync()).GetAwaiter().GetResult();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-    });
+builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
+builder.Services.AddSingleton<IEnvironment, IceSync.CommonAbstractions.Environment>();
+builder.Services.AddSingleton<IFileSystem, FileSystem>();
 
-builder.Services.AddSingleton<IceSync.Web.Services.ITokenService, IceSync.Web.Services.TokenService>();
+builder.Services.AddSingleton<IJwtSecurityTokenHandler, JwtSecurityTokenHandlerWrapper>();
+builder.Services.AddSingleton<IJwtTokenManager, JwtTokenManager>();
+
+builder.Services.Configure<ApiClientConfig>(builder.Configuration.GetSection(nameof(ApiClientConfig)));
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IApiClient, ApiClient>();
 
 // Configure Hangfire to use SQL Server
 builder.Services.AddHangfire(configuration => configuration
@@ -66,9 +67,9 @@ var hostApplicationLifetime = app.Services.GetRequiredService<IHostApplicationLi
 hostApplicationLifetime.ApplicationStarted.Register(() =>
 {
     RecurringJob.AddOrUpdate<WorkflowSyncService>(
-        "SyncWorkflowsJob", // recurringJobId
+        "SyncWorkflowsJob",
         service => service.SynchronizeWorkflows(),
-        "*/30 * * * *", // CRON expression for every 30 minutes
+        "*/30 * * * *",
         new RecurringJobOptions { TimeZone = TimeZoneInfo.Local });
 });
 
