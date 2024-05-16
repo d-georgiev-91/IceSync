@@ -26,8 +26,7 @@ namespace IceSync.ApiClient
         {
             await EnsureAuthenticatedAsync();
 
-            var response = await _httpClient.GetAsync("/workflows");
-            response.EnsureSuccessStatusCode();
+            var response = await SendWithRetryAsync(() => _httpClient.GetAsync("/workflows"));
 
             var workflows = await response.Content.ReadFromJsonAsync<IEnumerable<Workflow>>();
 
@@ -38,7 +37,7 @@ namespace IceSync.ApiClient
         {
             await EnsureAuthenticatedAsync();
 
-            var response = await _httpClient.PostAsync($"/workflows/{id}/run", null);
+            var response = await SendWithRetryAsync(() => _httpClient.PostAsync($"/workflows/{id}/run", null), false);
             return response.IsSuccessStatusCode;
         }
 
@@ -52,21 +51,44 @@ namespace IceSync.ApiClient
             }
             else
             {
-                var requestBody = new
-                {
-                    apiCompanyId = _config.Value.ApiCompanyId,
-                    apiUserId = _config.Value.ApiUserId,
-                    apiUserSecret = _config.Value.ApiUserSecret
-                };
-
-                var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync("/authenticate", content);
-                response.EnsureSuccessStatusCode();
-
-                token = await response.Content.ReadAsStringAsync();
-                await _jwtTokenManager.SaveTokenAsync(token);
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                await AuthenticateAsync();
             }
+        }
+
+        private async Task AuthenticateAsync()
+        {
+            var requestBody = new
+            {
+                apiCompanyId = _config.Value.ApiCompanyId,
+                apiUserId = _config.Value.ApiUserId,
+                apiUserSecret = _config.Value.ApiUserSecret
+            };
+
+            var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/authenticate", content);
+            response.EnsureSuccessStatusCode();
+
+            var token = await response.Content.ReadAsStringAsync();
+            await _jwtTokenManager.SaveTokenAsync(token);
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        private async Task<HttpResponseMessage> SendWithRetryAsync(Func<Task<HttpResponseMessage>> sendRequest, bool ensureSuccessStatusCode = true)
+        {
+            var response = await sendRequest();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await AuthenticateAsync();
+                response = await sendRequest();
+            }
+
+            if (ensureSuccessStatusCode)
+            {
+                response.EnsureSuccessStatusCode();
+            }
+
+            return response;
         }
     }
 }

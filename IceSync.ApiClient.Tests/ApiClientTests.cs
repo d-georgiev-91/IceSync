@@ -7,143 +7,186 @@ using NSubstitute;
 using NUnit.Framework;
 using RichardSzalay.MockHttp;
 
-namespace IceSync.ApiClient.Tests;
-
-[TestFixture]
-public class ApiClientTests
+namespace IceSync.ApiClient.Tests
 {
-    private IJwtTokenManager _jwtTokenManager;
-    private IOptions<ApiClientConfig> _config;
-    private ApiClient _apiClient;
-    private HttpClient _httpClient;
-    private MockHttpMessageHandler _messageHandler;
-
-    private const string ApiBaseUrl = "https://api.example.com/";
-    private const string? Token = "mock-jwt-token";
-    private readonly ApiClientConfig _apiClientConfig = new()
+    [TestFixture]
+    public class ApiClientTests
     {
-        ApiBaseUrl = ApiBaseUrl,
-        ApiCompanyId = "company-id",
-        ApiUserId = "user-id",
-        ApiUserSecret = "user-secret"
-    };
+        private IJwtTokenManager _jwtTokenManager;
+        private IOptions<ApiClientConfig> _config;
+        private ApiClient _apiClient;
+        private HttpClient _httpClient;
+        private MockHttpMessageHandler _messageHandler;
 
-    [SetUp]
-    public void SetUp()
-    {
-        _jwtTokenManager = Substitute.For<IJwtTokenManager>();
-        _config = Options.Create(_apiClientConfig);
-
-        _messageHandler = new MockHttpMessageHandler();
-        _httpClient = _messageHandler.ToHttpClient();
-
-        _apiClient = new ApiClient(_httpClient, _jwtTokenManager, _config);
-    }
-
-    [Test]
-    public async Task GetWorkflowsAsync_ReturnsWorkflows()
-    {
-        var workflows = new List<Workflow> { new()
-            {
-                Id = 1,
-                Name = "Test Workflow",
-                MultiExecBehavior = "MultiExecBehavior"
-            }
+        private const string ApiBaseUrl = "https://api.example.com/";
+        private const string? Token = "mock-jwt-token";
+        private readonly ApiClientConfig _apiClientConfig = new()
+        {
+            ApiBaseUrl = ApiBaseUrl,
+            ApiCompanyId = "company-id",
+            ApiUserId = "user-id",
+            ApiUserSecret = "user-secret"
         };
-        var responseJson = JsonSerializer.Serialize(workflows);
-        _messageHandler.When("/workflows")
-            .Respond("application/json", responseJson);
 
-        _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
-        _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
+        [SetUp]
+        public void SetUp()
+        {
+            _jwtTokenManager = Substitute.For<IJwtTokenManager>();
+            _config = Options.Create(_apiClientConfig);
 
-        var result = await _apiClient.GetWorkflowsAsync();
+            _messageHandler = new MockHttpMessageHandler();
+            _httpClient = _messageHandler.ToHttpClient();
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(JsonSerializer.Serialize(result), Is.EqualTo(responseJson));
-    }
+            _apiClient = new ApiClient(_httpClient, _jwtTokenManager, _config);
+        }
 
-    [Test]
-    public async Task RunWorkflowAsync_ValidId_ReturnsTrue()
-    {
-        _messageHandler.When("/workflows/*/run")
-            .Respond(_ => new HttpResponseMessage(HttpStatusCode.OK));
-
-        _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
-        _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
-
-        var result = await _apiClient.RunWorkflowAsync(1);
-
-        Assert.That(result, Is.True);
-    }
-
-    [Test]
-    public async Task RunWorkflowAsync_InvalidId_ReturnsFalse()
-    {
-        _messageHandler.When("/workflows/*/run")
-            .Respond(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
-
-        _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
-        _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
-
-        var result = await _apiClient.RunWorkflowAsync(999);
-
-        Assert.That(result, Is.False);
-    }
-
-    [Test]
-    public async Task EnsureAuthenticatedAsync_TokenIsValid_SetsAuthorizationHeader()
-    {
-        _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
-        _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
-        var workflows = new List<Workflow> { new()
+        [Test]
+        public async Task GetWorkflowsAsync_ReturnsWorkflows()
+        {
+            var workflows = new List<Workflow>
             {
-                Id = 1,
-                Name = "Test Workflow",
-                MultiExecBehavior = "MultiExecBehavior"
-            }
-        };
-        var responseJson = JsonSerializer.Serialize(workflows);
-        _messageHandler.When("/workflows")
-            .Respond("application/json", responseJson);
-        await _apiClient.GetWorkflowsAsync();
+                new()
+                {
+                    Id = 1,
+                    Name = "Test Workflow",
+                    MultiExecBehavior = "MultiExecBehavior"
+                }
+            };
+            var responseJson = JsonSerializer.Serialize(workflows);
+            _messageHandler.When("/workflows")
+                .Respond("application/json", responseJson);
 
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization, Is.Not.Null);
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Scheme, Is.EqualTo("Bearer"));
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo(Token));
-    }
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
+            _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
 
-    [Test]
-    public async Task EnsureAuthenticatedAsync_TokenIsExpired_AuthenticatesAndSetsNewToken()
-    {
-        _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult<string?>(null));
-        _jwtTokenManager.IsTokenExpired(Arg.Any<string>()).Returns(true);
-        var newToken = "new-jwt-token";
-        var workflows = new List<Workflow> { new()
+            var result = await _apiClient.GetWorkflowsAsync();
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(JsonSerializer.Serialize(result), Is.EqualTo(responseJson));
+        }
+
+        [Test]
+        public async Task RunWorkflowAsync_ValidId_ReturnsTrue()
+        {
+            _messageHandler.When("/workflows/*/run")
+                .Respond(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
+            _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
+
+            var result = await _apiClient.RunWorkflowAsync(1);
+
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public async Task RunWorkflowAsync_InvalidId_ReturnsFalse()
+        {
+            _messageHandler.When("/workflows/*/run")
+                .Respond(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
+            _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
+
+            var result = await _apiClient.RunWorkflowAsync(999);
+
+            Assert.That(result, Is.False);
+        }
+
+        [Test]
+        public async Task EnsureAuthenticatedAsync_TokenIsValid_SetsAuthorizationHeader()
+        {
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
+            _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
+            var workflows = new List<Workflow>
             {
-                Id = 1,
-                Name = "Test Workflow",
-                MultiExecBehavior = "MultiExecBehavior"
-            }
-        };
-        var responseJson = JsonSerializer.Serialize(workflows);
-        _messageHandler.When("/workflows")
-            .Respond("application/json", responseJson);
-        _messageHandler.When(HttpMethod.Post, "/authenticate")
-            .Respond("application/json", newToken);
+                new()
+                {
+                    Id = 1,
+                    Name = "Test Workflow",
+                    MultiExecBehavior = "MultiExecBehavior"
+                }
+            };
+            var responseJson = JsonSerializer.Serialize(workflows);
+            _messageHandler.When("/workflows")
+                .Respond("application/json", responseJson);
 
-        await _apiClient.GetWorkflowsAsync();
+            await _apiClient.GetWorkflowsAsync();
 
-        await _jwtTokenManager.Received().SaveTokenAsync(newToken);
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization, Is.Not.Null);
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Scheme, Is.EqualTo("Bearer"));
-        Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo(newToken));
-    }
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization, Is.Not.Null);
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Scheme, Is.EqualTo("Bearer"));
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo(Token));
+        }
 
-    [TearDown]
-    public void TearDown()
-    {
-        _messageHandler.Clear();
-        _messageHandler.Flush();
+        [Test]
+        public async Task EnsureAuthenticatedAsync_TokenIsExpired_AuthenticatesAndSetsNewToken()
+        {
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult<string?>(null));
+            _jwtTokenManager.IsTokenExpired(Arg.Any<string>()).Returns(true);
+
+            var newToken = "new-jwt-token";
+            var workflows = new List<Workflow>
+            {
+                new()
+                {
+                    Id = 1,
+                    Name = "Test Workflow",
+                    MultiExecBehavior = "MultiExecBehavior"
+                }
+            };
+            var responseJson = JsonSerializer.Serialize(workflows);
+            _messageHandler.When("/workflows")
+                .Respond("application/json", responseJson);
+            _messageHandler.When(HttpMethod.Post, "/authenticate")
+                .Respond("application/json", newToken);
+
+            await _apiClient.GetWorkflowsAsync();
+
+            await _jwtTokenManager.Received().SaveTokenAsync(newToken);
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization, Is.Not.Null);
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Scheme, Is.EqualTo("Bearer"));
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo(newToken));
+        }
+
+        [Test]
+        public async Task SendWithRetryAsync_WhenUnauthorized_ReauthenticatesAndRetries()
+        {
+            _jwtTokenManager.LoadTokenAsync().Returns(Task.FromResult(Token));
+            _jwtTokenManager.IsTokenExpired(Token!).Returns(false);
+            var newToken = "new-jwt-token";
+            var workflows = new List<Workflow>
+            {
+                new()
+                {
+                    Id = 1,
+                    Name = "Test Workflow",
+                    MultiExecBehavior = "MultiExecBehavior"
+                }
+            };
+            var responseJson = JsonSerializer.Serialize(workflows);
+
+            _messageHandler.When("/workflows")
+                .Respond(req => req.Headers.Authorization.Parameter == Token
+                    ? new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                    : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(responseJson) });
+
+            _messageHandler.When(HttpMethod.Post, "/authenticate")
+                .Respond("application/json", newToken);
+
+            var result = await _apiClient.GetWorkflowsAsync();
+
+            await _jwtTokenManager.Received().SaveTokenAsync(newToken);
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization, Is.Not.Null);
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Scheme, Is.EqualTo("Bearer"));
+            Assert.That(_httpClient.DefaultRequestHeaders.Authorization.Parameter, Is.EqualTo(newToken));
+            Assert.That(JsonSerializer.Serialize(result), Is.EqualTo(responseJson));
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _messageHandler.Clear();
+            _messageHandler.Flush();
+        }
     }
 }
