@@ -7,6 +7,7 @@ using System.Text.Json;
 using IceSync.ApiClient;
 using IceSync.ApiClient.Configs;
 using IceSync.CommonAbstractions;
+using IceSync.Data.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,10 +19,12 @@ builder.Services.AddControllersWithViews()
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
+builder.Services.AddAutoMapper(typeof(Program));
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddAutoMapper(typeof(Program));
+builder.Services.AddScoped<IWorkflowRepository, WorkflowRepository>();
 
 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
 builder.Services.AddSingleton<IEnvironment, IceSync.CommonAbstractions.Environment>();
