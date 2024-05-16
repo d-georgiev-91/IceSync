@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
 using IceSync.ApiClient;
-using IceSync.Data.Entities;
 using IceSync.Data.Repositories;
 
 namespace IceSync.Web.Services;
@@ -27,13 +26,12 @@ public class WorkflowSyncService
         try
         {
             var workflowsFromApi = await _apiClient.GetWorkflowsAsync();
-
             var workflowsFromDb = await _workflowRepository.GetAllAsync();
 
             var workflowsToAdd = workflowsFromApi.Where(apiWorkflow => workflowsFromDb.All(dbWorkflow => dbWorkflow.Id != apiWorkflow.Id)).ToList();
             var workflowsToDelete = workflowsFromDb.Where(dbWorkflow => workflowsFromApi.All(apiWorkflow => apiWorkflow.Id != dbWorkflow.Id)).ToList();
 
-            var workflowsToUpdate = new List<Workflow>();
+            var workflowsToUpdate = new List<Data.Entities.Workflow>();
 
             foreach (var dbWorkflow in workflowsFromDb)
             {
@@ -43,33 +41,7 @@ public class WorkflowSyncService
                     continue;
                 }
 
-                var isUpdated = false;
-
-                if (dbWorkflow.Name != apiWorkflow.Name)
-                {
-                    dbWorkflow.Name = apiWorkflow.Name;
-                    isUpdated = true;
-                }
-
-                if (dbWorkflow.IsActive != apiWorkflow.IsActive)
-                {
-                    dbWorkflow.IsActive = apiWorkflow.IsActive;
-                    isUpdated = true;
-                }
-
-                if (dbWorkflow.IsRunning != apiWorkflow.IsRunning)
-                {
-                    dbWorkflow.IsRunning = apiWorkflow.IsRunning;
-                    isUpdated = true;
-                }
-
-                if (dbWorkflow.MultiExecBehavior != apiWorkflow.MultiExecBehavior)
-                {
-                    dbWorkflow.MultiExecBehavior = apiWorkflow.MultiExecBehavior;
-                    isUpdated = true;
-                }
-
-                if (isUpdated)
+                if (UpdateWorkflowProperties(dbWorkflow, apiWorkflow))
                 {
                     workflowsToUpdate.Add(dbWorkflow);
                 }
@@ -77,17 +49,17 @@ public class WorkflowSyncService
 
             if (workflowsToAdd.Any())
             {
-                await _workflowRepository.BulkInsertAsync(_mapper.Map<IEnumerable<Workflow>>(workflowsToAdd));
+                await _workflowRepository.BulkInsertAsync(_mapper.Map<IEnumerable<Data.Entities.Workflow>>(workflowsToAdd));
             }
 
             if (workflowsToDelete.Any())
             {
-                await _workflowRepository.BulkDeleteAsync(_mapper.Map<IEnumerable<Workflow>>(workflowsToDelete));
+                await _workflowRepository.BulkDeleteAsync(_mapper.Map<IEnumerable<Data.Entities.Workflow>>(workflowsToDelete));
             }
 
             if (workflowsToUpdate.Any())
             {
-                await _workflowRepository.BulkUpdateAsync(_mapper.Map<IEnumerable<Workflow>>(workflowsToUpdate));
+                await _workflowRepository.BulkUpdateAsync(_mapper.Map<IEnumerable<Data.Entities.Workflow>>(workflowsToUpdate));
             }
 
             _logger.LogInformation("Workflow synchronization completed successfully.");
@@ -96,5 +68,28 @@ public class WorkflowSyncService
         {
             _logger.LogError(ex, "An error occurred while synchronizing workflows.");
         }
+    }
+
+    private bool UpdateWorkflowProperties(Data.Entities.Workflow dbWorkflow, ApiClient.ResponseModels.Workflow apiWorkflow)
+    {
+        var isUpdated = false;
+        var dbWorkflowProperties = typeof(Data.Entities.Workflow).GetProperties();
+        var apiWorkflowType = typeof(ApiClient.ResponseModels.Workflow);
+
+        foreach (var property in dbWorkflowProperties)
+        {
+            if (property.Name == "Id") continue;
+
+            var apiWorkflowProperty = apiWorkflowType.GetProperty(property.Name) ?? throw new InvalidOperationException($"Property mismatch, no such property in Workflow entity {property.Name}");
+
+            var dbValue = property.GetValue(dbWorkflow);
+            var apiValue = apiWorkflowProperty.GetValue(apiWorkflow);
+
+            if (Equals(dbValue, apiValue)) continue;
+            property.SetValue(dbWorkflow, apiValue);
+            isUpdated = true;
+        }
+
+        return isUpdated;
     }
 }
